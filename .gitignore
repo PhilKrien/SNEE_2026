@@ -32,6 +32,7 @@ MANIFEST
 *.manifest
 *.spec
 
+data/snee_shape
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -216,3 +217,4 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.DS_Store
