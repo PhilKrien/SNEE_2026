@@ -1,0 +1,68 @@
+# %%
+import requests
+import pandas as pd
+import json
+
+
+
+#lokal laden statt API
+with open('EV_Lastprofile_per_API.json', 'r') as f:
+    data = json.load(f)
+
+
+
+# print some of the metadata
+print(f"id_opendata: {data['id_opendata']}")
+print(f"title: {data['title']}")
+
+# print the first three data entries
+#for data_entry in data['data'][:3]:
+ #   print(data_entry)
+
+print(type(data))
+print(data.keys())
+
+#for key in data.keys():
+ #   print(f"{key}: {type(data[key])}")
+
+
+##überblick verschaffen und daten ansehen
+print(data['data'][0])
+print(data['data'][0].keys())
+for key, value in data['data'][0].items(): 
+    print(f"{key}: {type(value).__name__} = {value}")
+
+print(len(data['data'][0]['values'])) 
+print("wie viele daten haben wir? ", len(data['data']))
+
+## Zeitreihen aller Ladevorgänge in Tabelle sortieren
+
+rows = []
+for entry in data['data']:
+    ladevorgang_nr = entry['internal_id'][0]
+    values = entry['values']
+    minutes = [i * 5 for i in range(len(values))]  # create a list of minutes (0, 5, 10, ..., 1435)
+    row = pd.Series(values, index=minutes, name=f'ladevorgang_{ladevorgang_nr}')
+    rows.append(row)
+
+df= pd.DataFrame(rows).T
+df.index.name = 'minute'
+df = df.reset_index()
+
+df.to_csv('EV_Lastprofile_per_API.csv', index=False)
+
+
+## maximale Leistung pro Ladevorgang berechnen
+p_max = df.drop(columns='minute').max()
+
+## nur Ladevorgänge behalten die nie über 24 kW gehen
+ladevorgang_unter_24 = p_max[p_max <= 24].index
+
+## nur Ladevorgänge behalten die nie über 24 kW gehen
+df_filtered = df[['minute'] + list(ladevorgang_unter_24)]
+
+
+print(f"Vorher: {len(df.columns)-1} Ladevorgänge")
+print(f"Nachher: {len(df_filtered.columns)-1} Ladevorgänge")
+
+df_filtered.to_csv('EV_Lastprofile_gefiltert.csv', index=False)
