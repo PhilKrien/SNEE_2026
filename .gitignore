@@ -218,3 +218,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .DS_Store
+
+data/DEA_method3b_final.parquet
