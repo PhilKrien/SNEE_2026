@@ -120,3 +120,58 @@ if __name__ == "__main__":
     profile = build_random_12h_lastprofile(random_state=42)
     print(profile.head())
     print(f"\nAnzahl Zeilen: {len(profile)}")
+
+
+def simultaneity_factor(*profiles, return_components: bool = False):
+    """Berechnet den Gleichzeitigkeitsfaktor mehrerer Lastprofile.
+
+    Parameters
+    ----------
+    *profiles : sequence of pandas.DataFrame
+        Jeweils ein DataFrame mit den Spalten `minute` und `lastprofil`.
+    return_components : bool
+        Wenn True, werden zusätzlich (Pmax, Pmax_einzeln) zurückgegeben.
+
+    Returns
+    -------
+    float
+        Der Gleichzeitigkeitsfaktor Pmax / Pmax_einzeln.
+    """
+    if len(profiles) == 0:
+        raise ValueError("Mindestens ein Profil muss übergeben werden.")
+
+    # Konvertiere Argumente sicher in DataFrames (falls sie es schon sind, bleibt alles)
+    dfs = []
+    for p in profiles:
+        if not hasattr(p, "__getitem__"):
+            raise TypeError("Jedes übergebene Profil muss ein DataFrame-ähnliches Objekt mit 'minute' und 'lastprofil' sein")
+        dfs.append(p)
+
+    # Finde gemeinsame Minuten (Schnittmenge). Falls leer, benutze die Minuten des ersten Profils.
+    import functools
+    import numpy as _np
+
+    minutes_list = [df["minute"].to_numpy() for df in dfs]
+    try:
+        common = functools.reduce(lambda a, b: _np.intersect1d(a, b), minutes_list)
+    except Exception:
+        common = minutes_list[0]
+    if len(common) == 0:
+        common = minutes_list[0]
+
+    # Baue eine Matrix der Werte (len(profiles) x len(common))
+    vals = []
+    for df in dfs:
+        s = df.set_index("minute")["lastprofil"].reindex(common)
+        vals.append(s.to_numpy(dtype=float))
+    mat = _np.vstack(vals)
+
+    # Summiere zeitpunktweise
+    agg = _np.nansum(mat, axis=0)
+    Pmax = float(_np.nanmax(agg))
+    Pmax_einzeln = float(_np.nansum([_np.nanmax(v) for v in mat]))
+
+    factor = Pmax / Pmax_einzeln if Pmax_einzeln > 0 else float("nan")
+    if return_components:
+        return factor, Pmax, Pmax_einzeln
+    return factor
